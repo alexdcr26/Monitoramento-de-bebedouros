@@ -1,0 +1,5 @@
+{
+  "name": "IndusMaint",
+  "description": "Um aplicativo para gerenciar e monitorar o status de manutenção de equipamentos industriais.",
+  "requestFramePermissions": ["camera"]
+}
