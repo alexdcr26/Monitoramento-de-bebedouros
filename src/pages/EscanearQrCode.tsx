@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Lightbulb, XCircle } from 'lucide-react';
 
@@ -42,8 +42,8 @@ export default function EscanearQrCode() {
             }
         };
 
-        const onScanFailure = (error: string) => {
-            // console.warn(`Code scan error = ${error}`);
+        const onScanFailure = () => {
+            // Silently ignore scan failures.
         };
 
         try {
