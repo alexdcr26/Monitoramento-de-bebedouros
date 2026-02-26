@@ -40,12 +40,15 @@ function setupDatabase() {
     );
   `);
 
-  // Inserir usuário admin padrão se não existir
-  const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
-  if (userCount.count === 0) {
-    // Em um app real, use bcrypt para hashear senhas. Aqui, usamos texto simples para simplicidade.
+  // Garante que o usuário admin exista com a senha correta
+  const adminUser = db.prepare('SELECT * FROM users WHERE username = ?').get('admin');
+  if (adminUser) {
+    // Se o usuário admin existe, apenas garante que a senha está correta
+    db.prepare('UPDATE users SET password = ? WHERE username = ?').run('admin', 'admin');
+  } else {
+    // Se não existe, cria o usuário admin
     db.prepare('INSERT INTO users (username, password) VALUES (?, ?)')
-      .run('admin', 'admin'); 
+      .run('admin', 'admin');
   }
 
   // Tabela de Ciclos de Manutenção
