@@ -171,7 +171,8 @@ async function createServer() {
 
     try {
         transaction();
-        res.status(201).json({ id, sector, status, next_maintenance_in_days: nextMaintenanceDays });
+        const newEquipment = db.prepare('SELECT * FROM equipments WHERE id = ?').get(id);
+        res.status(201).json(newEquipment);
     } catch (error: any) {
         if (error.code === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
             return res.status(409).json({ error: 'Código de equipamento já existe' });
