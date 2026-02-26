@@ -207,8 +207,8 @@ async function createServer() {
             VALUES (?, ?, ?, 'CONCLUÍDA', ?, ?, ?, ?)
         `);
         const newOrderId = `OS-${Date.now()}`;
-        const user = JSON.parse(req.cookies.user);
-        insertOrder.run(newOrderId, cycle.name, equipmentId, last_maintenance_date, last_maintenance_date, user.username, imageUrl);
+        const completedByUser = req.cookies.user ? JSON.parse(req.cookies.user).username : 'Técnico';
+        insertOrder.run(newOrderId, cycle.name, equipmentId, last_maintenance_date, last_maintenance_date, completedByUser, imageUrl);
 
         // 3. Recalcula o status do equipamento
         const cycles = db.prepare('SELECT * FROM maintenance_cycles WHERE equipment_id = ?').all(equipmentId);
