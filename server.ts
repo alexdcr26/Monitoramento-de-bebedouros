@@ -148,29 +148,30 @@ async function createServer() {
     const nextMaintenanceDays = Math.min(...cycles.map(c => calculateNextMaintenance(c.lastDate, parseInt(c.frequency, 10))));
     const status = nextMaintenanceDays < 7 ? (nextMaintenanceDays < 0 ? 'RISK' : 'WARNING') : 'SAFE';
 
-    const transaction = db.transaction(() => {
-        insertEquipment.run(id, sector, status, nextMaintenanceDays, imageUrl);
-        const insertOrder = db.prepare(`
-            INSERT INTO service_orders (id, title, equipment_id, status, due_date, is_late)
-            VALUES (?, ?, ?, 'PENDENTE', ?, ?)
-        `);
-
-        for (const cycle of cycles) {
-            const frequency = parseInt(cycle.frequency, 10);
-            insertCycle.run(id, cycle.name, cycle.lastDate, frequency);
-
-            const daysUntilNext = calculateNextMaintenance(cycle.lastDate, frequency);
-            if (daysUntilNext <= 0) {
-                const dueDate = new Date(cycle.lastDate);
-                dueDate.setDate(dueDate.getDate() + frequency);
-                const newOrderId = `OS-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-                insertOrder.run(newOrderId, cycle.name, id, dueDate.toISOString().split('T')[0], 1);
-            }
-        }
-    });
-
     try {
+        const transaction = db.transaction(() => {
+            insertEquipment.run(id, sector, status, nextMaintenanceDays, imageUrl);
+            const insertOrder = db.prepare(`
+                INSERT INTO service_orders (id, title, equipment_id, status, due_date, is_late)
+                VALUES (?, ?, ?, 'PENDENTE', ?, ?)
+            `);
+
+            for (const cycle of cycles) {
+                const frequency = parseInt(cycle.frequency, 10);
+                insertCycle.run(id, cycle.name, cycle.lastDate, frequency);
+
+                const daysUntilNext = calculateNextMaintenance(cycle.lastDate, frequency);
+                if (daysUntilNext <= 0) {
+                    const dueDate = new Date(cycle.lastDate);
+                    dueDate.setDate(dueDate.getDate() + frequency);
+                    const newOrderId = `OS-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+                    insertOrder.run(newOrderId, cycle.name, id, dueDate.toISOString().split('T')[0], 1);
+                }
+            }
+        });
+
         transaction();
+        
         res.status(201).json({
             id,
             sector,
