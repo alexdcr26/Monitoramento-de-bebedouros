@@ -4,7 +4,6 @@ import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
   const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin');
   const [error, setError] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -13,10 +12,10 @@ export default function Login() {
     e.preventDefault();
     setError('');
     try {
-      await login(username, password);
+      await login(username);
       navigate('/equipamentos');
     } catch (err) {
-      setError('Falha no login. Verifique suas credenciais.');
+      setError('Falha ao entrar. Tente novamente.');
     }
   };
 
@@ -39,19 +38,7 @@ export default function Login() {
                 onChange={(e) => setUsername(e.target.value)}
               />
             </div>
-            <div className='pt-4'>
-              <label htmlFor="password">Senha</label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                className="input-form"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
+
           </div>
 
           {error && <p className="text-sm text-red-600 text-center">{error}</p>}

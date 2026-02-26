@@ -31,25 +31,7 @@ function setupDatabase() {
     );
   `);
 
-  // Tabela de Usuários
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT NOT NULL UNIQUE,
-      password TEXT NOT NULL
-    );
-  `);
 
-  // Garante que o usuário admin exista com a senha correta
-  const adminUser = db.prepare('SELECT * FROM users WHERE username = ?').get('admin');
-  if (adminUser) {
-    // Se o usuário admin existe, apenas garante que a senha está correta
-    db.prepare('UPDATE users SET password = ? WHERE username = ?').run('admin', 'admin');
-  } else {
-    // Se não existe, cria o usuário admin
-    db.prepare('INSERT INTO users (username, password) VALUES (?, ?)')
-      .run('admin', 'admin');
-  }
 
   // Tabela de Ciclos de Manutenção
   db.exec(`

@@ -30,14 +30,7 @@ const upload = multer({ storage });
 // Configura o banco de dados na inicialização
 setupDatabase();
 
-// Middleware de autenticação
-const isAuthenticated = (req, res, next) => {
-    if (req.cookies.user) {
-        next();
-    } else {
-        res.status(401).json({ error: 'Não autorizado' });
-    }
-};
+
 
 async function createServer() {
   const app = express();
@@ -47,22 +40,18 @@ async function createServer() {
   app.use(cookieParser());
   app.use('/uploads', express.static(uploadDir));
 
-  // --- ROTAS DE AUTENTICAÇÃO ---
+  // Rota de login simplificada (sem senha)
   app.post('/api/auth/login', (req, res) => {
-    const { username, password } = req.body;
-    const user = db.prepare('SELECT * FROM users WHERE username = ? AND password = ?').get(username, password);
-    if (user) {
-        res.cookie('user', JSON.stringify({ username: user.username }), {
-            httpOnly: true, 
-            path: '/', 
-            maxAge: 24 * 60 * 60 * 1000, // 1 dia
-            sameSite: 'none',
-            secure: true
-        });
-        res.json({ username: user.username });
-    } else {
-        res.status(401).json({ error: 'Credenciais inválidas' });
-    }
+    const { username } = req.body;
+    // Apenas cria um cookie de usuário sem validação
+    res.cookie('user', JSON.stringify({ username }), {
+        httpOnly: true,
+        path: '/',
+        maxAge: 24 * 60 * 60 * 1000, // 1 dia
+        sameSite: 'none',
+        secure: true
+    });
+    res.json({ username });
   });
 
   app.post('/api/auth/logout', (req, res) => {
@@ -74,7 +63,8 @@ async function createServer() {
       if (req.cookies.user) {
           res.json(JSON.parse(req.cookies.user));
       } else {
-          res.status(401).json({ error: 'Não autenticado' });
+          // Retorna um usuário padrão se não houver cookie
+          res.json({ username: 'Visitante' });
       }
   });
 
@@ -84,7 +74,7 @@ async function createServer() {
   });
 
   // --- ROTAS PROTEGIDAS ---
-  app.get('/api/equipments', isAuthenticated, (req, res) => {
+  app.get('/api/equipments', (req, res) => {
     const equipments = db.prepare('SELECT * FROM equipments').all();
     res.json(equipments);
   });
@@ -128,7 +118,7 @@ async function createServer() {
     res.json(order);
   });
 
-  app.post('/api/equipments', isAuthenticated, upload.single('image'), (req, res) => {
+  app.post('/api/equipments', upload.single('image'), (req, res) => {
     let { id, sector, cycles } = req.body;
 
     if (typeof cycles === 'string') {
@@ -191,7 +181,7 @@ async function createServer() {
     }
   });
 
-  app.post('/api/cycles/:id/complete', isAuthenticated, upload.single('image'), (req, res) => {
+  app.post('/api/cycles/:id/complete', upload.single('image'), (req, res) => {
     const { id } = req.params;
     const { last_maintenance_date } = req.body;
     const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
@@ -247,7 +237,7 @@ async function createServer() {
     }
   });
 
-  app.put('/api/equipments/:id', isAuthenticated, (req, res) => {
+  app.put('/api/equipments/:id', (req, res) => {
     const { id } = req.params;
     const { sector, cycles } = req.body;
 
@@ -297,7 +287,7 @@ async function createServer() {
     res.json(serviceOrders);
   });
 
-  app.put('/api/service-orders/:id/complete', isAuthenticated, upload.single('image'), (req, res) => {
+  app.put('/api/service-orders/:id/complete', upload.single('image'), (req, res) => {
     const { id } = req.params;
     const { sap_os_number, completion_date, completed_by } = req.body;
     const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;

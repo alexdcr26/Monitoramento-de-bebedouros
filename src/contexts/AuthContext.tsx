@@ -2,7 +2,7 @@ import { createContext, useState, useContext, useEffect, ReactNode } from 'react
 
 interface AuthContextType {
   user: { username: string } | null;
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string) => Promise<void>;
   logout: () => Promise<void>;
   loading: boolean;
 }
@@ -30,12 +30,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkUser();
   }, []);
 
-  const login = async (username: string, password: string) => {
+  const login = async (username: string) => {
     const res = await fetch('/api/auth/login', {
       credentials: 'include',
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username }),
     });
     if (res.ok) {
       const data = await res.json();

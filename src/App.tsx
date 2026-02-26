@@ -11,30 +11,31 @@ import Guia from './pages/Guia';
 
 import Login from './pages/Login';
 
-function ProtectedRoute() {
-    const { user, loading } = useAuth();
-
-    if (loading) {
-        return <div>Carregando...</div>; // Ou um spinner
-    }
-
-    return user ? <Layout><Outlet /></Layout> : <Navigate to="/login" />;
-}
-
 function AppRoutes() {
+  const { loading } = useAuth();
+
+  if (loading) {
+    return <div>Carregando...</div>; 
+  }
+
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route path="/equipamentos/:id" element={<EquipamentoDetalhe />} /> 
       <Route path="/escanear-qr-code" element={<EscanearQrCode />} />
-
-      <Route element={<ProtectedRoute />}>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/equipamentos" element={<Equipamentos />} />
-        <Route path="/ordens" element={<Ordens />} />
-        <Route path="/ordens/:id" element={<OrdemServicoDetalhe />} />
-        <Route path="/guia" element={<Guia />} />
+      
+      {/* Rotas principais dentro do Layout */}
+      <Route path="/" element={<Layout><Outlet /></Layout>}>
+        <Route index element={<Navigate to="/dashboard" />} />
+        <Route path="dashboard" element={<Dashboard />} />
+        <Route path="equipamentos" element={<Equipamentos />} />
+        <Route path="equipamentos/:id" element={<EquipamentoDetalhe />} />
+        <Route path="ordens" element={<Ordens />} />
+        <Route path="ordens/:id" element={<OrdemServicoDetalhe />} />
+        <Route path="guia" element={<Guia />} />
       </Route>
+      
+      {/* Redireciona qualquer rota não encontrada para o dashboard */}
+      <Route path="*" element={<Navigate to="/dashboard" />} />
     </Routes>
   );
 }
