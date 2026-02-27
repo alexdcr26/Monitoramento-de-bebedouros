@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import multer from 'multer';
 import fs from 'fs';
 import cookieParser from 'cookie-parser';
+import cors from 'cors';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,7 +36,8 @@ setupDatabase();
 async function createServer() {
   const app = express();
 
-  // Middleware para parsear JSON e Cookies
+  // Middleware para parsear JSON, Cookies e habilitar CORS
+  app.use(cors({ origin: true, credentials: true }));
   app.use(express.json());
   app.use(cookieParser());
   app.use('/uploads', express.static(uploadDir));
@@ -119,43 +121,40 @@ async function createServer() {
   });
 
   app.post('/api/equipments', upload.single('image'), (req, res) => {
-    let { id, sector, cycles } = req.body;
-
-    if (typeof cycles === 'string') {
-        try {
-            cycles = JSON.parse(cycles);
-        } catch (e) {
-            return res.status(400).json({ error: 'Formato de ciclos inválido.' });
-        }
-    }
-
-    if (!id || !sector || !cycles || !Array.isArray(cycles)) {
-        return res.status(400).json({ error: 'Dados inválidos para criar equipamento.' });
-    }
-
-    const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
-    const insertEquipment = db.prepare('INSERT INTO equipments (id, sector, status, next_maintenance_in_days, image_url) VALUES (?, ?, ?, ?, ?)');
-    const insertCycle = db.prepare('INSERT INTO maintenance_cycles (equipment_id, name, last_maintenance_date, frequency_in_days) VALUES (?, ?, ?, ?)');
-
-    const calculateNextMaintenance = (lastDate: string, frequency: number) => {
-        const date = new Date(lastDate);
-        date.setDate(date.getDate() + frequency);
-        const today = new Date();
-        const diffTime = date.getTime() - today.getTime();
-        return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    };
-
-    const nextMaintenanceDays = Math.min(...cycles.map(c => calculateNextMaintenance(c.lastDate, parseInt(c.frequency, 10))));
-    const status = nextMaintenanceDays < 7 ? (nextMaintenanceDays < 0 ? 'RISK' : 'WARNING') : 'SAFE';
-
     try {
+        let { id, sector, cycles } = req.body;
+
+        if (typeof cycles === 'string') {
+            cycles = JSON.parse(cycles);
+        }
+
+        if (!id || !sector || !cycles || !Array.isArray(cycles)) {
+            return res.status(400).json({ error: 'Dados inválidos para criar equipamento.' });
+        }
+
+        const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+
+        const calculateNextMaintenance = (lastDate: string, frequency: number) => {
+            if (!lastDate || isNaN(frequency)) return Infinity;
+            const date = new Date(lastDate);
+            date.setDate(date.getDate() + frequency);
+            const today = new Date();
+            const diffTime = date.getTime() - today.getTime();
+            return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        };
+
+        const nextMaintenanceDays = Math.min(...cycles.map(c => calculateNextMaintenance(c.lastDate, parseInt(c.frequency, 10))));
+        const status = nextMaintenanceDays < 7 ? (nextMaintenanceDays < 0 ? 'RISK' : 'WARNING') : 'SAFE';
+
+        const insertEquipment = db.prepare('INSERT INTO equipments (id, sector, status, next_maintenance_in_days, image_url) VALUES (?, ?, ?, ?, ?)');
+        const insertCycle = db.prepare('INSERT INTO maintenance_cycles (equipment_id, name, last_maintenance_date, frequency_in_days) VALUES (?, ?, ?, ?)');
+        const insertOrder = db.prepare(`
+            INSERT INTO service_orders (id, title, equipment_id, status, due_date, is_late)
+            VALUES (?, ?, ?, 'PENDENTE', ?, ?)
+        `);
+
         const transaction = db.transaction(() => {
             insertEquipment.run(id, sector, status, nextMaintenanceDays, imageUrl);
-            const insertOrder = db.prepare(`
-                INSERT INTO service_orders (id, title, equipment_id, status, due_date, is_late)
-                VALUES (?, ?, ?, 'PENDENTE', ?, ?)
-            `);
-
             for (const cycle of cycles) {
                 const frequency = parseInt(cycle.frequency, 10);
                 insertCycle.run(id, cycle.name, cycle.lastDate, frequency);
@@ -171,7 +170,7 @@ async function createServer() {
         });
 
         transaction();
-        
+
         res.status(201).json({
             id,
             sector,
@@ -179,14 +178,15 @@ async function createServer() {
             next_maintenance_in_days: nextMaintenanceDays,
             image_url: imageUrl
         });
+
     } catch (error: any) {
         if (error.code === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
             return res.status(409).json({ error: 'Código de equipamento já existe' });
         }
-        console.error('Erro ao criar equipamento:', error);
-        res.status(500).json({ error: 'Erro interno ao criar equipamento' });
+        console.error('Erro fatal ao criar equipamento:', error);
+        res.status(500).json({ error: 'Erro interno ao processar a requisição.' });
     }
-  });
+});
 
   app.post('/api/cycles/:id/complete', upload.single('image'), (req, res) => {
     const { id } = req.params;
